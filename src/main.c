@@ -20,9 +20,9 @@ typedef struct {
 	bool skip; // Should this node be ignored (travelled over)
 } node;
 
-void initNode(node *newNode, const int *probabilities) {
+void initNode(node *newNode, const int *probabilities, bool skip) {
 	newNode->set = 0;
-	newNode->skip = false;
+	newNode->skip = skip;
 
 	// Instead of storing probabilities themselves, we store the sum of all previous probabilities plus the current one in order to test them all with a single random number
 	int probabilitiesTotal = 0;
@@ -50,7 +50,7 @@ void searchNode(node *toSearch, int reloadTries) {
 	}
 }
 
-long int setNode(node *nodes, int start, const int count, const int *gains, const int *losses, const int *setsPerLoss) {
+long int setNode(node *nodes, int start, int *setsCount, const int count, const int *gains, const int *losses, const int *setsPerLoss) {
 	// Base case : nullptrs or all nodes must either be skipped or not be tested
 	if (nodes == NULL || gains == NULL || losses == NULL) return 0;
 	for (int i = 0; i < count; i++) {
@@ -74,7 +74,10 @@ long int setNode(node *nodes, int start, const int count, const int *gains, cons
 		total += losses[from * count + to];
 		from = to;
 	}
-	int lastNodeBonus = setsPerLoss[total > MAX_TOTAL ? MAX_TOTAL : total] * LAST_NODE_MULTIPLIER;
+
+	int lastNodeBonus = setsPerLoss[total > MAX_TOTAL ? MAX_TOTAL : total];
+	if (setsCount != NULL) *setsCount = lastNodeBonus;
+	lastNodeBonus *= LAST_NODE_MULTIPLIER;
 	
 	// Resets the simulation and computes the real total, adding losses, subtracting gains, and adding the previously computed bonus each time the last node is travelled over (directly or not)
 	total = 0;
@@ -98,11 +101,11 @@ long int setNode(node *nodes, int start, const int count, const int *gains, cons
 	// We can represent the final total as the total given to clear one node plus the total given to clear all other nodes.
 	// Because "clearing all other nodes" is the same as "clearing all nodes" but setting the cleared node's skip flag (which we already did),
 	// we can make this function recursive by only computing the total for clearing one node and calling itself, skipping the cleared node.
-	return total + setNode(nodes, from, count, gains, losses, setsPerLoss);
+	return total + setNode(nodes, from, NULL, count, gains, losses, setsPerLoss);
 }
 
-int main() {
-	// haha magic number go weeeee
+int main(int argc, char *argv[]) {
+	// haha magic number go brrrr
 	const int losses[NODE_COUNT * NODE_COUNT] = {
 		0, 10, 19, 22, 35, 51, 0,
 		0, 0, 16, 15, 35, 51, 0,
@@ -133,6 +136,19 @@ int main() {
 		{0, 0, 0}
 	};
 
+	// Usage of command-line arguments (optional) : grotto [skip ...]
+	// [skip ...] is any number of integers between 0 inclusively and NODE_COUNT exclusively
+	// Any node with its index specified at the command line will start skipped
+	// For example, "grotto 5" will output the estimated time and number of 256 steps during reload to clear all nodes but the 6th.
+	// This can be used to determine if a certain arrangement is better than the other : we can determine if clearing all nodes at once is better than clearing all nodes close to each other, then the ones far away
+
+	bool skipNode[NODE_COUNT];
+	for (int i = 0; i < NODE_COUNT; i++) skipNode[i] = false;
+	for (int i = 1; i < argc; i++) {
+		int index = atoi(argv[i]);
+		if (index >= 0 && index < NODE_COUNT) skipNode[index] = true;
+	}
+
 	srand(time(NULL));
 
 	node nodes[NODE_COUNT];
@@ -152,15 +168,16 @@ int main() {
 	for (int i = 0; i <= 18; i++) setsPerLoss[i + 108] = 14;
 	setsPerLoss[MAX_TOTAL] = 15;
 
+	int setsCount;
+
 	long long int total = 0;
 	for (int i = 0; i < ITERATIONS; i++) {
 		for (int j = 0; j < NODE_COUNT; j++) {
-			initNode(&nodes[j], events[j]);
+			initNode(&nodes[j], events[j], skipNode[j]);
 		}
-		// Example : uncomment this to simulate doing only grottos 0-4 (node 6 is the place where the reloading takes place; it is not a grotto and cannot be tested)
-		// nodes[5].skip = true;
-		total += setNode(nodes, NODE_COUNT - 1, NODE_COUNT, gains, losses, setsPerLoss);
+		total += setNode(nodes, NODE_COUNT - 1, &setsCount, NODE_COUNT, gains, losses, setsPerLoss);
 	}
-	printf("%f\n", (float)total / ITERATIONS);
+	printf("approx. %fs\n", (float)total / ITERATIONS);
+	printf("Number of 256 steps during reload : %i\n", setsCount);
 	return 0;
 }
