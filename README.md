@@ -2,8 +2,7 @@
 A tool for optimizing your Professor Oak Challenge in Pokémon B2W2, written in C.
 
 grotto estimates the amount of time needed to capture all Pokémons in a series of hidden grottos and the optimal amount of biking for reloading them.
-The estimation is simply done through repetitive simulation and averaging. The current settings are set for { TODO where are the grottos anyway }, but a new set of hidden
-grottos may be simulated (see below).
+The estimation is simply done through repetitive simulation and averaging. The current settings are set for a specific set of hidden grottos but can easily be changed (see below).
 
 ## Usage
 `grotto [skip ...]`
@@ -36,6 +35,16 @@ A Makefile is provided with simple settings for gcc.
 `make debug` : disables all optimization (`-O0`) and enables debugging information (`-g`).
 
 ## Changing settings
+
+The current settings are set for these grottos, in order :
+
+0. Route 2
+1. Route 3 (dark grass)
+2. Route 3 (lake)
+3. Pinwheel forest (exterior)
+4. Pinwheel forest (interior)
+5. Route 18
+
 You may want to change the simulation's settings, whether it's to simulate another set of grottos or to make the estimation faster or more precise.
 
 ### Changing speed / precision
@@ -47,7 +56,7 @@ For reference, 100 000 iterations on a Ryzen 7 3700X @ 4.19GHz boosted and 3000M
 
 Then, the constants `gains`, `losses` and `events` should be changed.  
 `gains[X * NODE_COUNT + Y]` should be the amount of biking done to travel from grotto X to Y (starting at 0).  
-`losses[X * NODE_COUNT + Y]` should be the total amount of time needed to travel from grotto X to Y, minus gains[X * NODE_COUNT + Y].  
+`losses[X * NODE_COUNT + Y]` should be the total amount of time needed to travel from grotto X to Y, minus `gains[X * NODE_COUNT + Y]`.  
 `events[X][Y]` should be the probability of the Y'th Pokémon of the X'th grotto appearing when the grotto is reloaded, in 1/10 %.
 
 `MAX_TOTAL` and `setsPerLoss` should normally not be changed as long as `LAST_NODE_MULTIPLIER` and `EVENT_ROLL_PROB` aren't. The last two are always valid for B2W2 games,
